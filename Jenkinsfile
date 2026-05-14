@@ -3,19 +3,18 @@ pipeline {
 
     environment {
         DOCKER_IMAGE    = 'techstore-app'
-        DOCKER_HUB_USER = 'kullanici-adi'          // Docker Hub kullanıcı adınız
-        SONAR_HOST      = 'http://localhost:9000'
-        SONAR_TOKEN     = credentials('sonar-token') // Jenkins Credentials'a ekleyin
+        DOCKER_HUB_USER = 'kullanici-adi'           // Docker Hub kullanıcı adınız
+        SONAR_HOST      = 'http://host.docker.internal:9000'
+        SONAR_TOKEN     = credentials('sonar-token') 
         SLACK_CHANNEL   = '#devops-techstore'
     }
 
     stages {
-
         // ── 1. KAYNAK KOD ───────────────────────────────────────
         stage('Checkout') {
             steps {
                 checkout scm
-                echo "✅ Kod GitHub'dan alındı: ${env.GIT_COMMIT?.take(7)}"
+                echo "✅ Kod GitHub'dan alındı"
             }
         }
 
@@ -55,7 +54,7 @@ pipeline {
         }
 
         // ── 4. KOD KALİTE ANALİZİ ──────────────────────────────
-     stage('SonarQube Analysis') {
+        stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh '''
@@ -70,8 +69,6 @@ pipeline {
                             -Dsonar.login=${SONAR_TOKEN}
                     '''
                 }
-            }
-        }
             }
         }
 
@@ -92,11 +89,9 @@ pipeline {
                     docker build \
                         -t ${DOCKER_IMAGE}:${env.BUILD_NUMBER} \
                         -t ${DOCKER_IMAGE}:latest \
-                        --build-arg BUILD_DATE=\$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-                        --build-arg GIT_COMMIT=${env.GIT_COMMIT?.take(7)} \
                         .
                 """
-                echo "✅ Docker imajı oluşturuldu: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                echo "✅ Docker imajı oluşturuldu"
             }
         }
 
@@ -124,18 +119,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-                    # Eski konteyneri durdur
                     docker stop techstore-app 2>/dev/null || true
                     docker rm techstore-app 2>/dev/null || true
-
-                    # Yeni versiyonu başlat
                     docker run -d \
                         --name techstore-app \
                         --restart unless-stopped \
                         -p 5000:5000 \
                         ${DOCKER_HUB_USER}/${DOCKER_IMAGE}:latest
-
-                    echo "⏳ Sağlık kontrolü bekleniyor..."
                     sleep 10
                 """
             }
@@ -145,20 +135,11 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                    # /health endpoint kontrol
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
-                    if [ "$STATUS" != "200" ]; then
-                        echo "❌ Smoke test başarısız! HTTP: $STATUS"
+                    STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://host.docker.internal:5000/health || echo "000")
+                    if [ "\$STATUS" != "200" ]; then
+                        echo "❌ Smoke test başarısız! HTTP: \$STATUS"
                         exit 1
                     fi
-
-                    # Ana sayfa kontrol
-                    STATUS2=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/)
-                    if [ "$STATUS2" != "200" ]; then
-                        echo "❌ Ana sayfa erişilemiyor! HTTP: $STATUS2"
-                        exit 1
-                    fi
-
                     echo "✅ Smoke testleri geçildi"
                 '''
             }
@@ -173,43 +154,27 @@ pipeline {
                 '''
             }
         }
-    }
+    } // نهاية الـ stages
 
-    // ── POST ACTIONS ────────────────────────────────────────────
     post {
         success {
             echo "🎉 Pipeline başarıyla tamamlandı!"
-            slackSend(
+            /* slackSend(
                 channel: env.SLACK_CHANNEL,
                 color: 'good',
-                message: """
-✅ *TechStore Deploy Başarılı*
-• Branch: `${env.BRANCH_NAME}`
-• Build: `#${env.BUILD_NUMBER}`
-• Commit: `${env.GIT_COMMIT?.take(7)}`
-• URL: ${env.BUILD_URL}
-                """
-            )
+                message: "✅ *TechStore Deploy Başarılı*"
+            ) */
         }
-    failure {
+        failure {
             echo "❌ Pipeline başarısız!"
             /* slackSend(
                 channel: env.SLACK_CHANNEL,
                 color: 'danger',
-                message: """
-❌ *TechStore Deploy Başarısız*
-• Branch: `${env.BRANCH_NAME}`
-• Build: `#${env.BUILD_NUMBER}`
-• Aşama: ${env.STAGE_NAME}
-• Detay: ${env.BUILD_URL}console
-                """
-            )
-            */
+                message: "❌ *TechStore Deploy Başarısız*"
+            ) */
         }
         always {
-            // Eski imajları temizle (son 3'ü tut)
             sh "docker image prune -f --filter 'until=72h' || true"
-            // cleanWs()
         }
     }
 }
