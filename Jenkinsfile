@@ -189,9 +189,9 @@ pipeline {
                 """
             )
         }
-        failure {
+    failure {
             echo "❌ Pipeline başarısız!"
-            slackSend(
+            /* slackSend(
                 channel: env.SLACK_CHANNEL,
                 color: 'danger',
                 message: """
@@ -202,6 +202,7 @@ pipeline {
 • Detay: ${env.BUILD_URL}console
                 """
             )
+            */
         }
         always {
             // Eski imajları temizle (son 3'ü tut)
