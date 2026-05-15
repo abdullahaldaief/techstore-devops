@@ -177,4 +177,12 @@ pipeline {
             sh "docker image prune -f --filter 'until=72h' || true"
         }
     }
+    post {
+        success {
+            slackSend(color: 'good', message: "✅ *BAŞARILI:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n🚀 TechStore Sürüm 1.0.0 başarıyla deploy edildi!\n🔗 Detaylar: ${env.BUILD_URL}")
+        }
+        failure {
+            slackSend(color: 'danger', message: "❌ *BAŞARISIZ:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n⚠️ Pipeline aşamalarından birinde hata oluştu. Lütfen kontrol edin!\n🔗 Detaylar: ${env.BUILD_URL}")
+        }
+    }
 }
