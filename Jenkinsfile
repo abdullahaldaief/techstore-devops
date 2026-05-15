@@ -157,34 +157,16 @@ pipeline {
     } // نهاية الـ stages
 
     post {
-        success {
-            echo "🎉 Pipeline başarıyla tamamlandı!"
-            /* slackSend(
-                channel: env.SLACK_CHANNEL,
-                color: 'good',
-                message: "✅ *TechStore Deploy Başarılı*"
-            ) */
-        }
-        failure {
-            echo "❌ Pipeline başarısız!"
-            /* slackSend(
-                channel: env.SLACK_CHANNEL,
-                color: 'danger',
-                message: "❌ *TechStore Deploy Başarısız*"
-            ) */
-        }
-        always {
-            sh "docker image prune -f --filter 'until=72h' || true"
-        }
-    }
-    post {
         always {
             echo 'Pipeline çalışması tamamlandı. Temizlik işlemleri yapılabilir.'
+            sh "docker image prune -f --filter 'until=72h' || true"
         }
         success {
+            echo "🎉 Pipeline başarıyla tamamlandı!"
             slackSend(color: 'good', message: "✅ *BAŞARILI:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n🚀 TechStore Sürüm 1.0.0 başarıyla deploy edildi!\n🔗 Detaylar: ${env.BUILD_URL}")
         }
         failure {
+            echo "❌ Pipeline başarısız!"
             slackSend(color: 'danger', message: "❌ *BAŞARISIZ:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n⚠️ Pipeline aşamalarından birinde hata oluştu. Lütfen kontrol edin!\n🔗 Detaylar: ${env.BUILD_URL}")
         }
     }
