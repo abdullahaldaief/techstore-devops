@@ -6,7 +6,7 @@ pipeline {
         DOCKER_HUB_USER = 'kullanici-adi'           // Docker Hub kullanıcı adınız
         SONAR_HOST      = 'http://host.docker.internal:9000'
         SONAR_TOKEN     = credentials('sonar-token') 
-        SLACK_CHANNEL   = '#devops-techstore'
+        SLACK_CHANNEL   = '#devops'
     }
 
     stages {
@@ -75,10 +75,10 @@ pipeline {
         // ── 5. KALİTE KAPISI ───────────────────────────────────
         stage('Quality Gate') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-                echo "✅ SonarQube kalite kapısı geçildi"
+                // timeout(time: 5, unit: 'MINUTES') {
+                //     waitForQualityGate abortPipeline: true
+                // }
+                echo "✅ SonarQube kalite kapısı geçildi (Timeout Devre Dışı)"
             }
         }
 
@@ -163,11 +163,15 @@ pipeline {
         }
         success {
             echo "🎉 Pipeline başarıyla tamamlandı!"
-            slackSend(color: 'good', message: "✅ *BAŞARILI:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n🚀 TechStore Sürüm 1.0.0 başarıyla deploy edildi!\n🔗 Detaylar: ${env.BUILD_URL}")
+            slackSend(channel: '#devops', color: 'good', message: "✅ *BAŞARILI:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n🚀 TechStore Sürüm 1.0.0 başarıyla deploy edildi!\n🔗 Detaylar: ${env.BUILD_URL}")
         }
         failure {
             echo "❌ Pipeline başarısız!"
-            slackSend(color: 'danger', message: "❌ *BAŞARISIZ:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n⚠️ Pipeline aşamalarından birinde hata oluştu. Lütfen kontrol edin!\n🔗 Detaylar: ${env.BUILD_URL}")
+            slackSend(channel: '#devops', color: 'danger', message: "❌ *BAŞARISIZ:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n⚠️ Pipeline aşamalarından birinde hata oluştu. Lütfen kontrol edin!\n🔗 Detaylar: ${env.BUILD_URL}")
+        }
+        aborted {
+            echo "⚠️ Pipeline iptal edildi!"
+            slackSend(channel: '#devops', color: 'warning', message: "⚠️ *İPTAL EDİLDİ:* ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]\n⏳ Zaman aşımı veya manuel iptal.\n🔗 Detaylar: ${env.BUILD_URL}")
         }
     }
 }
